@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Data.SqlClient;
 using Napper.Models;
+using Npgsql;
 
 namespace Napper.Data;
 
@@ -8,6 +12,7 @@ public static class NapperDbSeeder
     public static async Task SeedAsync(NapperDbContext dbContext, CancellationToken cancellationToken = default)
     {
         await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await EnsureApplicationSchemaAsync(dbContext, cancellationToken);
         await EnsureProfileSettingsTableAsync(dbContext, cancellationToken);
 
         if (await dbContext.BabyProfiles.AnyAsync(cancellationToken))
@@ -68,6 +73,20 @@ public static class NapperDbSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private static async Task EnsureApplicationSchemaAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.BabyProfiles.AsNoTracking().AnyAsync(cancellationToken);
+        }
+        catch (Exception exception) when (IsMissingAppTableException(exception))
+        {
+            var databaseCreator = dbContext.GetService<IRelationalDatabaseCreator>();
+            var createScript = databaseCreator.GenerateCreateScript();
+            await dbContext.Database.ExecuteSqlRawAsync(createScript, cancellationToken);
+        }
+    }
+
     private static async Task EnsureProfileSettingsTableAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
     {
         if (!dbContext.Database.IsSqlServer())
@@ -91,6 +110,15 @@ public static class NapperDbSeeder
 
         await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
     }
+
+    private static bool IsMissingAppTableException(Exception exception) =>
+        exception switch
+        {
+            PostgresException postgresException when postgresException.SqlState == "42P01" => true,
+            SqlException sqlException when sqlException.Number == 208 => true,
+            _ when exception.InnerException is not null => IsMissingAppTableException(exception.InnerException),
+            _ => false
+        };
 
     private static BabyProfileSettings CreateDefaultSettings(Guid babyId) =>
         new()
