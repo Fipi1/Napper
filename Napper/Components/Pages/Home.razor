@@ -267,7 +267,7 @@
 </div>
 
 @code {
-    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
+    private readonly DateOnly _today = AppTime.Today;
     private BabyDailySnapshot _snapshot = default!;
     private IReadOnlyList<BabyDailySnapshot> _recentHistory = [];
     private BabyProfile _baby = default!;
@@ -300,14 +300,14 @@
     private string TimeUntilNextNapText =>
         _nextRecommendation is null
             ? "Planeras senare"
-            : $"{Math.Max(0, (int)Math.Round((_nextRecommendation.RecommendedStartTime - DateTimeOffset.Now).TotalMinutes))} min";
+            : $"{Math.Max(0, (int)Math.Round((_nextRecommendation.RecommendedStartTime - AppTime.UtcNow).TotalMinutes))} min";
 
     private void RefreshDashboardData()
     {
         _snapshot = AppState.GetSnapshotFor(_today);
         _recentHistory = AppState.GetSnapshots(_snapshot.Date.AddDays(-5), _snapshot.Date);
         _baby = _snapshot.Baby;
-        _nextRecommendation = RecommendationService.GetNextNapRecommendation(_snapshot, _recentHistory, DateTimeOffset.Now);
+        _nextRecommendation = RecommendationService.GetNextNapRecommendation(_snapshot, _recentHistory, AppTime.UtcNow);
     }
 
     private void SetActiveForm(LogFormType formType)
@@ -375,11 +375,11 @@
     private static string GetCurrentWakeWindow(BabyDailySnapshot snapshot)
     {
         var lastNap = snapshot.SleepSessions
-            .Where(session => session.SessionType == SleepSessionType.Nap && session.EndTime <= DateTimeOffset.Now)
+            .Where(session => session.SessionType == SleepSessionType.Nap && session.EndTime <= AppTime.UtcNow)
             .OrderByDescending(session => session.EndTime)
             .FirstOrDefault();
 
-        return lastNap is null ? "Nyss vaknat" : FormatDuration(DateTimeOffset.Now - lastNap.EndTime);
+        return lastNap is null ? "Nyss vaknat" : FormatDuration(AppTime.UtcNow - lastNap.EndTime);
     }
 
     private static IReadOnlyList<ScheduleEntry> BuildSchedule(BabyDailySnapshot snapshot)
@@ -397,7 +397,7 @@
                 $"Nap {napNumber}",
                 FormatDuration(sleep.Duration),
                 sleep.Notes ?? "Loggat sömnpass.",
-                sleep.StartTime <= DateTimeOffset.Now && sleep.EndTime >= DateTimeOffset.Now));
+                sleep.StartTime <= AppTime.UtcNow && sleep.EndTime >= AppTime.UtcNow));
 
             napNumber++;
         }
@@ -542,7 +542,7 @@
 
         public static SleepLogForm CreateDefault()
         {
-            var now = DateTime.Now;
+            var now = AppTime.LocalNow;
             return new SleepLogForm
             {
                 StartTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0),
@@ -561,7 +561,7 @@
 
         public static FeedingLogForm CreateDefault()
         {
-            var now = DateTime.Now;
+            var now = AppTime.LocalNow;
             return new FeedingLogForm
             {
                 LoggedAt = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0)
@@ -577,7 +577,7 @@
 
         public static DiaperLogForm CreateDefault()
         {
-            var now = DateTime.Now;
+            var now = AppTime.LocalNow;
             return new DiaperLogForm
             {
                 ChangedAt = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0)

@@ -262,8 +262,8 @@
     }
 
     private HistoryView CurrentView { get; set; } = HistoryView.Today;
-    private DateOnly SelectedDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
-    private DateTime _selectedDateValue = DateTime.Today;
+    private DateOnly SelectedDate { get; set; } = AppTime.Today;
+    private DateTime _selectedDateValue = AppTime.LocalNow.Date;
 
     private DateTime SelectedDateValue
     {
@@ -272,9 +272,9 @@
         {
             _selectedDateValue = value;
             SelectedDate = DateOnly.FromDateTime(value);
-            CurrentView = SelectedDate == DateOnly.FromDateTime(DateTime.Today)
+            CurrentView = SelectedDate == AppTime.Today
                 ? HistoryView.Today
-                : SelectedDate == DateOnly.FromDateTime(DateTime.Today.AddDays(-1))
+                : SelectedDate == AppTime.Today.AddDays(-1)
                     ? HistoryView.Yesterday
                     : HistoryView.CustomDay;
             ClearEditing();
@@ -282,7 +282,7 @@
         }
     }
 
-    private string TodayString => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    private string TodayString => AppTime.Today.ToString("yyyy-MM-dd");
     private string? StatusMessage { get; set; }
 
     private Guid? EditingSleepId { get; set; }
@@ -295,7 +295,7 @@
 
     private BabyDailySnapshot Snapshot => AppState.GetSnapshotFor(SelectedDate);
     private IReadOnlyList<BabyDailySnapshot> Last7DaysSnapshots =>
-        AppState.GetSnapshots(DateOnly.FromDateTime(DateTime.Today.AddDays(-6)), DateOnly.FromDateTime(DateTime.Today));
+        AppState.GetSnapshots(AppTime.Today.AddDays(-6), AppTime.Today);
 
     private bool IsSingleDayView => CurrentView != HistoryView.Last7Days;
 
@@ -354,13 +354,13 @@
     private void ShowToday()
     {
         CurrentView = HistoryView.Today;
-        SelectedDateValue = DateTime.Today;
+        SelectedDateValue = AppTime.LocalNow.Date;
     }
 
     private void ShowYesterday()
     {
         CurrentView = HistoryView.Yesterday;
-        SelectedDateValue = DateTime.Today.AddDays(-1);
+        SelectedDateValue = AppTime.LocalNow.Date.AddDays(-1);
     }
 
     private void ShowLast7Days()

@@ -136,13 +136,13 @@
 
     private BabyProfileSettings CurrentSettings => AppState.GetBabyProfileSettings();
 
-    private string TodayDateString => DateTime.Today.ToString("yyyy-MM-dd");
+    private string TodayDateString => AppTime.Today.ToString("yyyy-MM-dd");
 
     private string AgeText
     {
         get
         {
-            var age = CurrentProfile.AgeInMonthsAndDays(DateOnly.FromDateTime(DateTime.Today));
+            var age = CurrentProfile.AgeInMonthsAndDays(AppTime.Today);
             return age.Days == 0
                 ? $"{age.Months} månader"
                 : $"{age.Months} månader och {age.Days} dagar";
@@ -208,7 +208,7 @@
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public string BirthDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string BirthDateText { get; set; } = AppTime.Today.ToString("yyyy-MM-dd");
         public string? Notes { get; set; }
     }
 

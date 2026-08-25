@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Napper.Models;
+using Napper.Services;
 
 namespace Napper.Data;
 
@@ -8,7 +9,7 @@ public sealed class NapperDbContext(DbContextOptions<NapperDbContext> options) :
 {
     private static readonly ValueConverter<DateTimeOffset, DateTime> UtcDateTimeOffsetConverter = new(
         value => value.UtcDateTime,
-        value => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToLocalTime());
+        value => AppTime.ToLocalOffset(new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc))));
 
     public DbSet<BabyProfile> BabyProfiles => Set<BabyProfile>();
     public DbSet<BabyProfileSettings> BabyProfileSettings => Set<BabyProfileSettings>();

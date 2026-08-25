@@ -270,7 +270,7 @@ public sealed class BabySleepAppState(NapperDbContext dbContext)
     }
 
     private static DateTimeOffset ToLocalOffset(DateTime localDateTime) =>
-        new(localDateTime, TimeZoneInfo.Local.GetUtcOffset(localDateTime));
+        AppTime.ToLocalOffset(localDateTime);
 
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

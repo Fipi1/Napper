@@ -3,7 +3,7 @@
 
 @{
     var baby = AppState.GetBabyProfile();
-    var today = DateOnly.FromDateTime(DateTime.Today);
+    var today = AppTime.Today;
     var age = baby.AgeInMonthsAndDays(today);
     var monthLabel = age.Months == 1 ? "månad" : "månader";
     var dayLabel = age.Days == 1 ? "dag" : "dagar";
