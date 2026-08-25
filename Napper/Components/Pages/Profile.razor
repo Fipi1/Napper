@@ -1,0 +1,224 @@
+@page "/profil"
+@inject BabySleepAppState AppState
+
+<PageTitle>Profil</PageTitle>
+
+<div class="profile-shell">
+    <section class="panel profile-hero">
+        <div class="panel-header">
+            <div>
+                <span class="section-kicker">Profil</span>
+                <h1>Sigrids profil och inställningar</h1>
+            </div>
+        </div>
+
+        <p class="history-intro">
+            Här kan ni uppdatera grunduppgifter, anteckningar och några första inställningar som påverkar hur appen känns i vardagen.
+        </p>
+
+        @if (!string.IsNullOrWhiteSpace(StatusMessage))
+        {
+            <div class="status-banner profile-status">@StatusMessage</div>
+        }
+    </section>
+
+    <section class="profile-grid">
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Barn</span>
+                    <h2>Grunduppgifter</h2>
+                </div>
+            </div>
+
+            <EditForm Model="@ProfileForm" OnValidSubmit="@SaveProfile" FormName="profile-form">
+                <div class="form-grid">
+                    <label>
+                        <span>Namn</span>
+                        <input type="text" @bind="ProfileForm.Name" />
+                    </label>
+                    <label>
+                        <span>Födelsedatum</span>
+                        <input type="text" @bind="ProfileForm.BirthDateText" placeholder="2026-06-25" />
+                    </label>
+                    <label class="form-span-2">
+                        <span>Anteckningar</span>
+                        <textarea rows="5" @bind="ProfileForm.Notes"></textarea>
+                    </label>
+                </div>
+
+                <div class="inline-actions">
+                    <button type="submit" class="submit-button">Spara profil</button>
+                </div>
+            </EditForm>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Inställningar</span>
+                    <h2>Daglig användning</h2>
+                </div>
+            </div>
+
+            <EditForm Model="@SettingsForm" OnValidSubmit="@SaveSettings" FormName="profile-settings-form">
+                <div class="form-grid">
+                    <label>
+                        <span>Önskad läggtid</span>
+                        <InputText @bind-Value="SettingsForm.PreferredBedtime" placeholder="19:15" />
+                    </label>
+                    <label>
+                        <span>Vanligt antal naps</span>
+                        <input type="number" min="1" max="8" @bind="SettingsForm.PreferredNapCount" />
+                    </label>
+                    <label class="checkbox-card">
+                        <InputCheckbox @bind-Value="SettingsForm.Use24HourClock" />
+                        <span>Använd 24-timmarsklocka</span>
+                    </label>
+                    <label class="checkbox-card">
+                        <InputCheckbox @bind-Value="SettingsForm.WhiteNoiseEnabled" />
+                        <span>Vitbrus-rutin aktiv</span>
+                    </label>
+                    <label class="form-span-2">
+                        <span>Omsorgsanteckningar</span>
+                        <textarea rows="5" @bind="SettingsForm.CareNotes"></textarea>
+                    </label>
+                </div>
+
+                <div class="inline-actions">
+                    <button type="submit" class="submit-button">Spara inställningar</button>
+                </div>
+            </EditForm>
+        </article>
+
+        <article class="panel profile-summary-card">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Översikt</span>
+                    <h2>Nuvarande profil</h2>
+                </div>
+            </div>
+
+            <div class="profile-summary-list">
+                <div class="profile-summary-item">
+                    <span>Namn</span>
+                    <strong>@CurrentProfile.Name</strong>
+                </div>
+                <div class="profile-summary-item">
+                    <span>Ålder</span>
+                    <strong>@AgeText</strong>
+                </div>
+                <div class="profile-summary-item">
+                    <span>Laggtid</span>
+                    <strong>@(string.IsNullOrWhiteSpace(CurrentSettings.PreferredBedtime) ? "Inte satt" : CurrentSettings.PreferredBedtime)</strong>
+                </div>
+                <div class="profile-summary-item">
+                    <span>Vanligt antal naps</span>
+                    <strong>@(CurrentSettings.PreferredNapCount?.ToString() ?? "Inte satt")</strong>
+                </div>
+                <div class="profile-summary-item">
+                    <span>Vitbrus-rutin</span>
+                    <strong>@(CurrentSettings.WhiteNoiseEnabled ? "På" : "Av")</strong>
+                </div>
+            </div>
+        </article>
+    </section>
+</div>
+
+@code {
+    private string? StatusMessage { get; set; }
+
+    private ProfileFormModel ProfileForm { get; set; } = new();
+
+    private SettingsFormModel SettingsForm { get; set; } = new();
+
+    private BabyProfile CurrentProfile => AppState.GetBabyProfile();
+
+    private BabyProfileSettings CurrentSettings => AppState.GetBabyProfileSettings();
+
+    private string TodayDateString => DateTime.Today.ToString("yyyy-MM-dd");
+
+    private string AgeText
+    {
+        get
+        {
+            var age = CurrentProfile.AgeInMonthsAndDays(DateOnly.FromDateTime(DateTime.Today));
+            return age.Days == 0
+                ? $"{age.Months} månader"
+                : $"{age.Months} månader och {age.Days} dagar";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadForms();
+    }
+
+    private void LoadForms()
+    {
+        var profile = CurrentProfile;
+        var settings = CurrentSettings;
+
+        ProfileForm = new ProfileFormModel
+        {
+            Id = profile.Id,
+            Name = profile.Name,
+            BirthDateText = profile.BirthDate.ToString("yyyy-MM-dd"),
+            Notes = profile.Notes
+        };
+
+        SettingsForm = new SettingsFormModel
+        {
+            BabyProfileId = settings.BabyProfileId,
+            PreferredBedtime = settings.PreferredBedtime,
+            PreferredNapCount = settings.PreferredNapCount,
+            Use24HourClock = settings.Use24HourClock,
+            WhiteNoiseEnabled = settings.WhiteNoiseEnabled,
+            CareNotes = settings.CareNotes
+        };
+    }
+
+    private void SaveProfile()
+    {
+        AppState.UpdateBabyProfile(
+            ProfileForm.Id,
+            ProfileForm.Name,
+            DateOnly.Parse(ProfileForm.BirthDateText),
+            ProfileForm.Notes);
+
+        LoadForms();
+        StatusMessage = "Profilen är sparad.";
+    }
+
+    private void SaveSettings()
+    {
+        AppState.UpdateBabyProfileSettings(
+            SettingsForm.BabyProfileId,
+            SettingsForm.PreferredBedtime,
+            SettingsForm.PreferredNapCount,
+            SettingsForm.Use24HourClock,
+            SettingsForm.WhiteNoiseEnabled,
+            SettingsForm.CareNotes);
+
+        LoadForms();
+        StatusMessage = "Inställningarna är sparade.";
+    }
+
+    private sealed class ProfileFormModel
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string BirthDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string? Notes { get; set; }
+    }
+
+    private sealed class SettingsFormModel
+    {
+        public Guid BabyProfileId { get; set; }
+        public string? PreferredBedtime { get; set; }
+        public int? PreferredNapCount { get; set; }
+        public bool Use24HourClock { get; set; }
+        public bool WhiteNoiseEnabled { get; set; }
+        public string? CareNotes { get; set; }
+    }
+}

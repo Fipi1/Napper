@@ -1,12 +1,25 @@
 using Napper.Components;
+using Microsoft.EntityFrameworkCore;
+using Napper.Data;
+using Napper.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddDbContext<NapperDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("NapperDatabase")));
+builder.Services.AddScoped<BabySleepAppState>();
+builder.Services.AddScoped<SleepRecommendationService>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<NapperDbContext>();
+    await NapperDbSeeder.SeedAsync(dbContext);
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

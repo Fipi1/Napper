@@ -1,4 +1,16 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject BabySleepAppState AppState
+
+@{
+    var baby = AppState.GetBabyProfile();
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    var age = baby.AgeInMonthsAndDays(today);
+    var monthLabel = age.Months == 1 ? "månad" : "månader";
+    var dayLabel = age.Days == 1 ? "dag" : "dagar";
+    var ageText = age.Days == 0
+        ? $"{age.Months} {monthLabel}"
+        : $"{age.Months} {monthLabel} och {age.Days} {dayLabel}";
+}
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +19,15 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="top-row-copy">
+                <strong>@baby.Name, @ageText</strong>
+                <span>Personlig prototyp för sömnrytm</span>
+            </div>
+
+            <div class="top-row-actions">
+                <a class="top-row-button top-row-button-link" href="#logga">Dela dagen</a>
+                <a class="top-row-button top-row-button-primary top-row-button-link" href="#logga">Logga händelse</a>
+            </div>
         </div>
 
         <article class="content px-4">
@@ -19,5 +39,5 @@
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <span class="dismiss">x</span>
 </div>

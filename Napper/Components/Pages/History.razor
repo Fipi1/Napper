@@ -1,0 +1,634 @@
+@page "/historik"
+@inject BabySleepAppState AppState
+
+<PageTitle>Historik</PageTitle>
+
+<div class="history-shell">
+    <section class="panel history-hero">
+        <div class="panel-header">
+            <div>
+                <span class="section-kicker">Historik</span>
+                <h1>Dagens och tidigare loggar</h1>
+            </div>
+        </div>
+
+        <p class="history-intro">
+            Välj ett datum för att se hur dagen såg ut, eller växla till en snabb översikt för den senaste veckan.
+        </p>
+
+        <div class="history-toolbar">
+            <div class="history-quick-filters">
+                <button type="button" class="toggle-chip @(CurrentView == HistoryView.Today ? "is-active" : null)" @onclick="ShowToday">Idag</button>
+                <button type="button" class="toggle-chip @(CurrentView == HistoryView.Yesterday ? "is-active" : null)" @onclick="ShowYesterday">Igår</button>
+                <button type="button" class="toggle-chip @(CurrentView == HistoryView.Last7Days ? "is-active" : null)" @onclick="ShowLast7Days">Senaste 7 dagarna</button>
+            </div>
+
+            <label class="history-date-picker">
+                <span>Datum</span>
+                <InputDate TValue="DateTime" @bind-Value="SelectedDateValue" max="@TodayString" />
+            </label>
+
+            @if (!string.IsNullOrWhiteSpace(StatusMessage))
+            {
+                <div class="status-banner">@StatusMessage</div>
+            }
+        </div>
+    </section>
+
+    <section class="history-summary-grid">
+        <article class="summary-card summary-card-primary">
+            <span class="section-kicker">Sammanfattning</span>
+            <strong>@SummaryTitle</strong>
+            <p>@SummaryText</p>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-label">Dagsömn</span>
+            <strong>@SummarySleepValue</strong>
+            <p>@SummarySleepText</p>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-label">Senaste matning</span>
+            <strong>@SummaryFeedingTitle</strong>
+            <p>@SummaryFeedingText</p>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-label">Senaste blöja</span>
+            <strong>@SummaryDiaperTitle</strong>
+            <p>@SummaryDiaperText</p>
+        </article>
+    </section>
+
+    <section class="history-grid">
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Sömn</span>
+                    <h2>@SleepHeading</h2>
+                </div>
+            </div>
+
+            <div class="history-list">
+                @foreach (var session in VisibleSleepSessions)
+                {
+                    <div class="history-card">
+                        <div class="history-card-head">
+                            <div>
+                                <strong>@(session.SessionType == SleepSessionType.Nap ? "Tupplur" : "Nattsömn")</strong>
+                                <span>@session.StartTime:ddd HH:mm - @session.EndTime:HH:mm</span>
+                            </div>
+                            @if (CurrentView == HistoryView.CustomDay || CurrentView == HistoryView.Today || CurrentView == HistoryView.Yesterday)
+                            {
+                                <div class="history-card-actions">
+                                    <button type="button" class="mini-button" @onclick="() => StartEdit(session)">Redigera</button>
+                                    <button type="button" class="mini-button mini-button-danger" @onclick="() => DeleteSleep(session.Id)">Ta bort</button>
+                                </div>
+                            }
+                        </div>
+                        <p>@(string.IsNullOrWhiteSpace(session.Notes) ? "Ingen anteckning." : session.Notes)</p>
+
+                        @if (EditingSleepId == session.Id && IsSingleDayView)
+                        {
+                            <EditForm Model="@SleepEditForm" OnValidSubmit="@SaveSleepEdit" FormName="@($"sleep-edit-{session.Id}")">
+                                <div class="form-grid compact-grid">
+                                    <label>
+                                        <span>Start</span>
+                                        <input type="datetime-local" @bind="SleepEditForm.StartTime" />
+                                    </label>
+                                    <label>
+                                        <span>Slut</span>
+                                        <input type="datetime-local" @bind="SleepEditForm.EndTime" />
+                                    </label>
+                                    <label>
+                                        <span>Typ</span>
+                                        <InputSelect @bind-Value="SleepEditForm.SessionType">
+                                            <option value="@SleepSessionType.Nap">Tupplur</option>
+                                            <option value="@SleepSessionType.NightSleep">Nattsömn</option>
+                                        </InputSelect>
+                                    </label>
+                                    <label class="form-span-2">
+                                        <span>Anteckning</span>
+                                        <textarea rows="2" @bind="SleepEditForm.Notes"></textarea>
+                                    </label>
+                                </div>
+                                <div class="inline-actions">
+                                    <button type="submit" class="submit-button">Spara</button>
+                                    <button type="button" class="ghost-button" @onclick="CancelSleepEdit">Avbryt</button>
+                                </div>
+                            </EditForm>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Matning</span>
+                    <h2>@FeedingHeading</h2>
+                </div>
+            </div>
+
+            <div class="history-list">
+                @foreach (var entry in VisibleFeedings)
+                {
+                    <div class="history-card">
+                        <div class="history-card-head">
+                            <div>
+                                <strong>@ToSwedishFeedingMethod(entry.Method)</strong>
+                                <span>@entry.LoggedAt:ddd HH:mm</span>
+                            </div>
+                            @if (IsSingleDayView)
+                            {
+                                <div class="history-card-actions">
+                                    <button type="button" class="mini-button" @onclick="() => StartEdit(entry)">Redigera</button>
+                                    <button type="button" class="mini-button mini-button-danger" @onclick="() => DeleteFeeding(entry.Id)">Ta bort</button>
+                                </div>
+                            }
+                        </div>
+                        <p>@BuildFeedingSummary(entry)</p>
+
+                        @if (EditingFeedingId == entry.Id && IsSingleDayView)
+                        {
+                            <EditForm Model="@FeedingEditForm" OnValidSubmit="@SaveFeedingEdit" FormName="@($"feeding-edit-{entry.Id}")">
+                                <div class="form-grid compact-grid">
+                                    <label>
+                                        <span>Tid</span>
+                                        <input type="datetime-local" @bind="FeedingEditForm.LoggedAt" />
+                                    </label>
+                                    <label>
+                                        <span>Metod</span>
+                                        <InputSelect @bind-Value="FeedingEditForm.Method">
+                                            <option value="@FeedingMethod.Bottle">Flaska</option>
+                                            <option value="@FeedingMethod.Breast">Amning</option>
+                                            <option value="@FeedingMethod.Solids">Fast föda</option>
+                                        </InputSelect>
+                                    </label>
+                                    <label>
+                                        <span>Mängd (ml)</span>
+                                        <input type="number" min="0" step="5" @bind="FeedingEditForm.AmountMilliliters" />
+                                    </label>
+                                    <label>
+                                        <span>Längd (min)</span>
+                                        <input type="number" min="0" step="1" @bind="FeedingEditForm.DurationMinutes" />
+                                    </label>
+                                    <label class="form-span-2">
+                                        <span>Anteckning</span>
+                                        <textarea rows="2" @bind="FeedingEditForm.Notes"></textarea>
+                                    </label>
+                                </div>
+                                <div class="inline-actions">
+                                    <button type="submit" class="submit-button">Spara</button>
+                                    <button type="button" class="ghost-button" @onclick="CancelFeedingEdit">Avbryt</button>
+                                </div>
+                            </EditForm>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Blöjor</span>
+                    <h2>@DiaperHeading</h2>
+                </div>
+            </div>
+
+            <div class="history-list">
+                @foreach (var entry in VisibleDiapers)
+                {
+                    <div class="history-card">
+                        <div class="history-card-head">
+                            <div>
+                                <strong>@ToSwedishDiaperType(entry.Type)</strong>
+                                <span>@entry.ChangedAt:ddd HH:mm</span>
+                            </div>
+                            @if (IsSingleDayView)
+                            {
+                                <div class="history-card-actions">
+                                    <button type="button" class="mini-button" @onclick="() => StartEdit(entry)">Redigera</button>
+                                    <button type="button" class="mini-button mini-button-danger" @onclick="() => DeleteDiaper(entry.Id)">Ta bort</button>
+                                </div>
+                            }
+                        </div>
+                        <p>@(string.IsNullOrWhiteSpace(entry.Notes) ? "Ingen anteckning." : entry.Notes)</p>
+
+                        @if (EditingDiaperId == entry.Id && IsSingleDayView)
+                        {
+                            <EditForm Model="@DiaperEditForm" OnValidSubmit="@SaveDiaperEdit" FormName="@($"diaper-edit-{entry.Id}")">
+                                <div class="form-grid compact-grid">
+                                    <label>
+                                        <span>Tid</span>
+                                        <input type="datetime-local" @bind="DiaperEditForm.ChangedAt" />
+                                    </label>
+                                    <label>
+                                        <span>Typ</span>
+                                        <InputSelect @bind-Value="DiaperEditForm.Type">
+                                            <option value="@DiaperType.Wet">Kiss</option>
+                                            <option value="@DiaperType.Dirty">Bajs</option>
+                                            <option value="@DiaperType.Mixed">Båda</option>
+                                        </InputSelect>
+                                    </label>
+                                    <label class="form-span-2">
+                                        <span>Anteckning</span>
+                                        <textarea rows="2" @bind="DiaperEditForm.Notes"></textarea>
+                                    </label>
+                                </div>
+                                <div class="inline-actions">
+                                    <button type="submit" class="submit-button">Spara</button>
+                                    <button type="button" class="ghost-button" @onclick="CancelDiaperEdit">Avbryt</button>
+                                </div>
+                            </EditForm>
+                        }
+                    </div>
+                }
+            </div>
+        </article>
+    </section>
+</div>
+
+@code {
+    private enum HistoryView
+    {
+        Today,
+        Yesterday,
+        CustomDay,
+        Last7Days
+    }
+
+    private HistoryView CurrentView { get; set; } = HistoryView.Today;
+    private DateOnly SelectedDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    private DateTime _selectedDateValue = DateTime.Today;
+
+    private DateTime SelectedDateValue
+    {
+        get => _selectedDateValue;
+        set
+        {
+            _selectedDateValue = value;
+            SelectedDate = DateOnly.FromDateTime(value);
+            CurrentView = SelectedDate == DateOnly.FromDateTime(DateTime.Today)
+                ? HistoryView.Today
+                : SelectedDate == DateOnly.FromDateTime(DateTime.Today.AddDays(-1))
+                    ? HistoryView.Yesterday
+                    : HistoryView.CustomDay;
+            ClearEditing();
+            StatusMessage = null;
+        }
+    }
+
+    private string TodayString => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    private string? StatusMessage { get; set; }
+
+    private Guid? EditingSleepId { get; set; }
+    private Guid? EditingFeedingId { get; set; }
+    private Guid? EditingDiaperId { get; set; }
+
+    private SleepEditModel SleepEditForm { get; set; } = new();
+    private FeedingEditModel FeedingEditForm { get; set; } = new();
+    private DiaperEditModel DiaperEditForm { get; set; } = new();
+
+    private BabyDailySnapshot Snapshot => AppState.GetSnapshotFor(SelectedDate);
+    private IReadOnlyList<BabyDailySnapshot> Last7DaysSnapshots =>
+        AppState.GetSnapshots(DateOnly.FromDateTime(DateTime.Today.AddDays(-6)), DateOnly.FromDateTime(DateTime.Today));
+
+    private bool IsSingleDayView => CurrentView != HistoryView.Last7Days;
+
+    private IEnumerable<SleepSession> VisibleSleepSessions => IsSingleDayView
+        ? Snapshot.SleepSessions.OrderBy(entry => entry.StartTime)
+        : Last7DaysSnapshots.SelectMany(day => day.SleepSessions).OrderByDescending(entry => entry.StartTime);
+
+    private IEnumerable<FeedingEntry> VisibleFeedings => IsSingleDayView
+        ? Snapshot.Feedings.OrderBy(entry => entry.LoggedAt)
+        : Last7DaysSnapshots.SelectMany(day => day.Feedings).OrderByDescending(entry => entry.LoggedAt);
+
+    private IEnumerable<DiaperEntry> VisibleDiapers => IsSingleDayView
+        ? Snapshot.Diapers.OrderBy(entry => entry.ChangedAt)
+        : Last7DaysSnapshots.SelectMany(day => day.Diapers).OrderByDescending(entry => entry.ChangedAt);
+
+    private string SummaryTitle => CurrentView switch
+    {
+        HistoryView.Today => "Idag",
+        HistoryView.Yesterday => "Igår",
+        HistoryView.Last7Days => "Senaste 7 dagarna",
+        _ => $"{SelectedDate:dddd d MMMM}"
+    };
+
+    private string SummaryText => CurrentView == HistoryView.Last7Days
+        ? BuildLast7DaysSummaryText(Last7DaysSnapshots)
+        : BuildDaySummaryText(Snapshot);
+
+    private string SummarySleepValue => CurrentView == HistoryView.Last7Days
+        ? FormatDuration(Last7DaysSnapshots.Aggregate(TimeSpan.Zero, (sum, day) => sum + day.TotalDaySleep))
+        : FormatDuration(Snapshot.TotalDaySleep);
+
+    private string SummarySleepText => CurrentView == HistoryView.Last7Days
+        ? $"{Last7DaysSnapshots.Sum(day => day.SleepSessions.Count(session => session.SessionType == SleepSessionType.Nap))} tupplurar totalt"
+        : GetNapCountText(Snapshot);
+
+    private string SummaryFeedingTitle => CurrentView == HistoryView.Last7Days
+        ? GetLatestFeedingAcrossDays(Last7DaysSnapshots)
+        : GetLastFeedingTitle(Snapshot);
+
+    private string SummaryFeedingText => CurrentView == HistoryView.Last7Days
+        ? $"{Last7DaysSnapshots.Sum(day => day.Feedings.Count)} matningar under perioden"
+        : GetLastFeedingSubtitle(Snapshot);
+
+    private string SummaryDiaperTitle => CurrentView == HistoryView.Last7Days
+        ? GetLatestDiaperAcrossDays(Last7DaysSnapshots)
+        : GetLastDiaperTitle(Snapshot);
+
+    private string SummaryDiaperText => CurrentView == HistoryView.Last7Days
+        ? $"{Last7DaysSnapshots.Sum(day => day.Diapers.Count)} blöjbyten under perioden"
+        : GetLastDiaperSubtitle(Snapshot);
+
+    private string SleepHeading => IsSingleDayView ? $"{Snapshot.SleepSessions.Count} pass" : $"{VisibleSleepSessions.Count()} pass";
+    private string FeedingHeading => IsSingleDayView ? $"{Snapshot.Feedings.Count} loggar" : $"{VisibleFeedings.Count()} loggar";
+    private string DiaperHeading => IsSingleDayView ? $"{Snapshot.Diapers.Count} byten" : $"{VisibleDiapers.Count()} byten";
+
+    private void ShowToday()
+    {
+        CurrentView = HistoryView.Today;
+        SelectedDateValue = DateTime.Today;
+    }
+
+    private void ShowYesterday()
+    {
+        CurrentView = HistoryView.Yesterday;
+        SelectedDateValue = DateTime.Today.AddDays(-1);
+    }
+
+    private void ShowLast7Days()
+    {
+        CurrentView = HistoryView.Last7Days;
+        ClearEditing();
+        StatusMessage = null;
+    }
+
+    private void StartEdit(SleepSession session)
+    {
+        ClearEditing();
+        EditingSleepId = session.Id;
+        SleepEditForm = new SleepEditModel
+        {
+            StartTime = session.StartTime.LocalDateTime,
+            EndTime = session.EndTime.LocalDateTime,
+            SessionType = session.SessionType,
+            Notes = session.Notes
+        };
+    }
+
+    private void StartEdit(FeedingEntry entry)
+    {
+        ClearEditing();
+        EditingFeedingId = entry.Id;
+        FeedingEditForm = new FeedingEditModel
+        {
+            LoggedAt = entry.LoggedAt.LocalDateTime,
+            Method = entry.Method,
+            AmountMilliliters = entry.AmountMilliliters,
+            DurationMinutes = entry.DurationMinutes,
+            Notes = entry.Notes
+        };
+    }
+
+    private void StartEdit(DiaperEntry entry)
+    {
+        ClearEditing();
+        EditingDiaperId = entry.Id;
+        DiaperEditForm = new DiaperEditModel
+        {
+            ChangedAt = entry.ChangedAt.LocalDateTime,
+            Type = entry.Type,
+            Notes = entry.Notes
+        };
+    }
+
+    private void SaveSleepEdit()
+    {
+        if (EditingSleepId is null)
+        {
+            return;
+        }
+
+        AppState.UpdateSleepSession(EditingSleepId.Value, SleepEditForm.StartTime, SleepEditForm.EndTime, SleepEditForm.SessionType, SleepEditForm.Notes);
+        StatusMessage = "Sömnpass uppdaterat.";
+        ClearEditing();
+    }
+
+    private void SaveFeedingEdit()
+    {
+        if (EditingFeedingId is null)
+        {
+            return;
+        }
+
+        AppState.UpdateFeedingEntry(EditingFeedingId.Value, FeedingEditForm.LoggedAt, FeedingEditForm.Method, FeedingEditForm.AmountMilliliters, FeedingEditForm.DurationMinutes, FeedingEditForm.Notes);
+        StatusMessage = "Matning uppdaterad.";
+        ClearEditing();
+    }
+
+    private void SaveDiaperEdit()
+    {
+        if (EditingDiaperId is null)
+        {
+            return;
+        }
+
+        AppState.UpdateDiaperEntry(EditingDiaperId.Value, DiaperEditForm.ChangedAt, DiaperEditForm.Type, DiaperEditForm.Notes);
+        StatusMessage = "Blöjbyte uppdaterat.";
+        ClearEditing();
+    }
+
+    private void DeleteSleep(Guid id)
+    {
+        AppState.DeleteSleepSession(id);
+        StatusMessage = "Sömnpass borttaget.";
+        ClearEditing();
+    }
+
+    private void DeleteFeeding(Guid id)
+    {
+        AppState.DeleteFeedingEntry(id);
+        StatusMessage = "Matning borttagen.";
+        ClearEditing();
+    }
+
+    private void DeleteDiaper(Guid id)
+    {
+        AppState.DeleteDiaperEntry(id);
+        StatusMessage = "Blöjbyte borttaget.";
+        ClearEditing();
+    }
+
+    private void CancelSleepEdit() => ClearEditing();
+    private void CancelFeedingEdit() => ClearEditing();
+    private void CancelDiaperEdit() => ClearEditing();
+
+    private void ClearEditing()
+    {
+        EditingSleepId = null;
+        EditingFeedingId = null;
+        EditingDiaperId = null;
+    }
+
+    private static string ToSwedishFeedingMethod(FeedingMethod method) =>
+        method switch
+        {
+            FeedingMethod.Breast => "Amning",
+            FeedingMethod.Bottle => "Flaska",
+            FeedingMethod.Solids => "Fast föda",
+            _ => "Matning"
+        };
+
+    private static string ToSwedishDiaperType(DiaperType type) =>
+        type switch
+        {
+            DiaperType.Wet => "Kiss",
+            DiaperType.Dirty => "Bajs",
+            DiaperType.Mixed => "Båda",
+            _ => "Blöja"
+        };
+
+    private static string BuildFeedingSummary(FeedingEntry entry)
+    {
+        var parts = new List<string>();
+
+        if (entry.AmountMilliliters is not null)
+        {
+            parts.Add($"{entry.AmountMilliliters:0} ml");
+        }
+
+        if (entry.DurationMinutes is not null)
+        {
+            parts.Add($"{entry.DurationMinutes} min");
+        }
+
+        if (!string.IsNullOrWhiteSpace(entry.Notes))
+        {
+            parts.Add(entry.Notes!);
+        }
+
+        return parts.Count == 0 ? "Ingen extra information." : string.Join(" | ", parts);
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+
+        if (hours <= 0)
+        {
+            return $"{minutes} min";
+        }
+
+        return $"{hours} h {minutes:D2} min";
+    }
+
+    private static string BuildDaySummaryText(BabyDailySnapshot snapshot)
+    {
+        var naps = snapshot.SleepSessions.Count(session => session.SessionType == SleepSessionType.Nap);
+        var feeds = snapshot.Feedings.Count;
+        var diapers = snapshot.Diapers.Count;
+
+        return $"Dagen innehåller {naps} naps, {feeds} matningar och {diapers} blöjbyten.";
+    }
+
+    private static string BuildLast7DaysSummaryText(IReadOnlyList<BabyDailySnapshot> snapshots)
+    {
+        var naps = snapshots.Sum(day => day.SleepSessions.Count(session => session.SessionType == SleepSessionType.Nap));
+        var feeds = snapshots.Sum(day => day.Feedings.Count);
+        var diapers = snapshots.Sum(day => day.Diapers.Count);
+        return $"De senaste 7 dagarna innehåller {naps} naps, {feeds} matningar och {diapers} blöjbyten.";
+    }
+
+    private static string GetNapCountText(BabyDailySnapshot snapshot)
+    {
+        var naps = snapshot.SleepSessions.Count(session => session.SessionType == SleepSessionType.Nap);
+        return naps == 1 ? "1 tupplur loggad" : $"{naps} tupplurar loggade";
+    }
+
+    private static string GetLastFeedingTitle(BabyDailySnapshot snapshot)
+    {
+        var feeding = snapshot.LastFeeding;
+        return feeding is null ? "Ingen matning" : $"{ToSwedishFeedingMethod(feeding.Method)} {feeding.LoggedAt:HH:mm}";
+    }
+
+    private static string GetLastFeedingSubtitle(BabyDailySnapshot snapshot)
+    {
+        var feeding = snapshot.LastFeeding;
+        if (feeding is null)
+        {
+            return "Ingen matning loggad för valt datum.";
+        }
+
+        if (feeding.AmountMilliliters is not null)
+        {
+            return $"{feeding.AmountMilliliters:0} ml";
+        }
+
+        if (feeding.DurationMinutes is not null)
+        {
+            return $"{feeding.DurationMinutes} min";
+        }
+
+        return "Loggad utan extra mängd.";
+    }
+
+    private static string GetLastDiaperTitle(BabyDailySnapshot snapshot)
+    {
+        var diaper = snapshot.LastDiaper;
+        return diaper is null ? "Ingen blöja" : $"{ToSwedishDiaperType(diaper.Type)} {diaper.ChangedAt:HH:mm}";
+    }
+
+    private static string GetLastDiaperSubtitle(BabyDailySnapshot snapshot)
+    {
+        var diaper = snapshot.LastDiaper;
+        return diaper is null
+            ? "Inget blöjbyte loggat för valt datum."
+            : string.IsNullOrWhiteSpace(diaper.Notes)
+                ? "Senaste registrerade blöjbytet."
+                : diaper.Notes!;
+    }
+
+    private static string GetLatestFeedingAcrossDays(IReadOnlyList<BabyDailySnapshot> snapshots)
+    {
+        var feeding = snapshots.SelectMany(day => day.Feedings).OrderByDescending(entry => entry.LoggedAt).FirstOrDefault();
+        return feeding is null ? "Ingen matning" : $"{ToSwedishFeedingMethod(feeding.Method)} {feeding.LoggedAt:ddd HH:mm}";
+    }
+
+    private static string GetLatestDiaperAcrossDays(IReadOnlyList<BabyDailySnapshot> snapshots)
+    {
+        var diaper = snapshots.SelectMany(day => day.Diapers).OrderByDescending(entry => entry.ChangedAt).FirstOrDefault();
+        return diaper is null ? "Ingen blöja" : $"{ToSwedishDiaperType(diaper.Type)} {diaper.ChangedAt:ddd HH:mm}";
+    }
+
+    private sealed class SleepEditModel
+    {
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public SleepSessionType SessionType { get; set; } = SleepSessionType.Nap;
+        public string? Notes { get; set; }
+    }
+
+    private sealed class FeedingEditModel
+    {
+        public DateTime LoggedAt { get; set; }
+        public FeedingMethod Method { get; set; } = FeedingMethod.Bottle;
+        public double? AmountMilliliters { get; set; }
+        public int? DurationMinutes { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private sealed class DiaperEditModel
+    {
+        public DateTime ChangedAt { get; set; }
+        public DiaperType Type { get; set; } = DiaperType.Wet;
+        public string? Notes { get; set; }
+    }
+}

@@ -1,6 +1,12 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Napper</a>
+        <a class="navbar-brand" href="">
+            <span class="brand-mark">N</span>
+            <span class="brand-copy">
+                <strong>Napper</strong>
+                <small>Bebisens sömnplan</small>
+            </span>
+        </a>
     </div>
 </div>
 
@@ -10,21 +16,44 @@
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Översikt
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
+            <a class="nav-link nav-link-muted" href="#logga">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Logga
+            </a>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="historik">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Historik
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="profil">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Profil
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <a class="nav-link nav-link-muted" href="/">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Guider
+            </a>
+        </div>
+
+        <div class="nav-item px-3">
             <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Testyta
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Diagnostik
             </NavLink>
         </div>
     </nav>
 </div>
-

@@ -1,7 +1,587 @@
-﻿@page "/"
+@page "/"
+@inject BabySleepAppState AppState
+@inject SleepRecommendationService RecommendationService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Napper</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home-shell">
+    <section class="hero-card">
+        <div class="hero-copy">
+            <span class="eyebrow">Sömnstöd för små drömmare</span>
+            <h1>En praktisk sömnplanerare för bebisar</h1>
+            <p>
+                @_baby.Name är @AgeText. Här ser du vad som redan har hänt idag, vad som kommer härnäst
+                och kan logga nya händelser utan att lämna översikten.
+            </p>
 
-Welcome to your new app.
+            <div class="hero-stats">
+                <div class="stat-pill">
+                    <span class="stat-label">Nästa nap</span>
+                    <strong>@(_nextRecommendation?.RecommendedStartTime.ToString("HH:mm") ?? "--:--")</strong>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">Tid kvar</span>
+                    <strong>@TimeUntilNextNapText</strong>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">Sömn idag</span>
+                    <strong>@FormatDuration(_snapshot.TotalDaySleep)</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-panel">
+            <div class="sleep-ring">
+                <div class="sleep-ring-inner">
+                    <span class="ring-caption">Vakentid nu</span>
+                    <strong>@GetCurrentWakeWindow(_snapshot)</strong>
+                    <span class="ring-footnote">Baserat på senaste avslutade tuppluren</span>
+                </div>
+            </div>
+
+            <div class="hero-note">
+                <strong>Nuvarande rekommendation</strong>
+                <p>@BuildHeroNote(_snapshot)</p>
+                @if (_nextRecommendation is not null)
+                {
+                    <div class="recommendation-highlights">
+                        @foreach (var item in BuildRecommendationHighlights(_nextRecommendation))
+                        {
+                            <div class="recommendation-chip">@item</div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <article class="panel panel-accent">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Dagens plan</span>
+                    <h2>Sömnschema för idag</h2>
+                </div>
+                <a class="ghost-button text-link-button"
+                   href="#logga"
+                   onpointerdown="window.napperHome?.switchLogTab('sleep')"
+                   @onclick="() => SetActiveForm(LogFormType.Sleep)">Justera dag</a>
+            </div>
+
+            <div class="timeline">
+                @foreach (var item in BuildSchedule(_snapshot))
+                {
+                    <div class="timeline-item @(item.IsActive ? "active" : null)">
+                        <div class="timeline-time">
+                            <strong>@item.TimeRange</strong>
+                            <span>@item.Duration</span>
+                        </div>
+                        <div class="timeline-content">
+                            <strong>@item.Title</strong>
+                            <p>@item.Description</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="panel" id="logga">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Snabbloggning</span>
+                    <h2>Logga händelser</h2>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                @foreach (var action in BuildQuickActions(_snapshot.LastFeeding, _snapshot.LastDiaper))
+                {
+                    <button class="action-card"
+                            type="button"
+                            data-log-tab-button="@ToLogTabKey(action.FormType)"
+                            onpointerdown="window.napperHome?.switchLogTab(this.dataset.logTabButton)"
+                            @onclick="() => SetActiveForm(action.FormType)">
+                        <span class="action-icon">@action.Icon</span>
+                        <strong>@action.Title</strong>
+                        <span>@action.Subtitle</span>
+                    </button>
+                }
+            </div>
+
+            <div class="log-panel">
+                <div class="toggle-row">
+                    <button type="button"
+                            class="toggle-chip @(ActiveForm == LogFormType.Sleep ? "is-active" : null)"
+                            data-log-tab-button="sleep"
+                            onpointerdown="window.napperHome?.switchLogTab('sleep')"
+                            @onclick="() => SetActiveForm(LogFormType.Sleep)">Sömn</button>
+                    <button type="button"
+                            class="toggle-chip @(ActiveForm == LogFormType.Feeding ? "is-active" : null)"
+                            data-log-tab-button="feeding"
+                            onpointerdown="window.napperHome?.switchLogTab('feeding')"
+                            @onclick="() => SetActiveForm(LogFormType.Feeding)">Matning</button>
+                    <button type="button"
+                            class="toggle-chip @(ActiveForm == LogFormType.Diaper ? "is-active" : null)"
+                            data-log-tab-button="diaper"
+                            onpointerdown="window.napperHome?.switchLogTab('diaper')"
+                            @onclick="() => SetActiveForm(LogFormType.Diaper)">Blöja</button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(StatusMessage))
+                {
+                    <div class="status-banner">@StatusMessage</div>
+                }
+
+                <div data-log-form="sleep" class="@(ActiveForm == LogFormType.Sleep ? null : "log-form-hidden")">
+                    <EditForm Model="@SleepForm" OnValidSubmit="@HandleSleepSubmit" FormName="sleep-log-form">
+                        <DataAnnotationsValidator />
+                        <div class="form-grid">
+                            <label>
+                                <span>Start</span>
+                                <input type="datetime-local" @bind="SleepForm.StartTime" />
+                            </label>
+                            <label>
+                                <span>Slut</span>
+                                <input type="datetime-local" @bind="SleepForm.EndTime" />
+                            </label>
+                            <label>
+                                <span>Typ</span>
+                                <InputSelect @bind-Value="SleepForm.SessionType">
+                                    <option value="@SleepSessionType.Nap">Tupplur</option>
+                                    <option value="@SleepSessionType.NightSleep">Nattsömn</option>
+                                </InputSelect>
+                            </label>
+                            <label class="form-span-2">
+                                <span>Anteckning</span>
+                                <textarea rows="3" @bind="SleepForm.Notes"></textarea>
+                            </label>
+                        </div>
+
+                        <ValidationSummary />
+                        <button class="submit-button" type="submit">Spara sömnpass</button>
+                    </EditForm>
+                </div>
+
+                <div data-log-form="feeding" class="@(ActiveForm == LogFormType.Feeding ? null : "log-form-hidden")">
+                    <EditForm Model="@FeedingForm" OnValidSubmit="@HandleFeedingSubmit" FormName="feeding-log-form">
+                        <DataAnnotationsValidator />
+                        <div class="form-grid">
+                            <label>
+                                <span>Tid</span>
+                                <input type="datetime-local" @bind="FeedingForm.LoggedAt" />
+                            </label>
+                            <label>
+                                <span>Metod</span>
+                                <InputSelect @bind-Value="FeedingForm.Method">
+                                    <option value="@FeedingMethod.Bottle">Flaska</option>
+                                    <option value="@FeedingMethod.Breast">Amning</option>
+                                    <option value="@FeedingMethod.Solids">Fast föda</option>
+                                </InputSelect>
+                            </label>
+                            <label>
+                                <span>Mängd (ml)</span>
+                                <input type="number" min="0" step="5" @bind="FeedingForm.AmountMilliliters" />
+                            </label>
+                            <label>
+                                <span>Längd (min)</span>
+                                <input type="number" min="0" step="1" @bind="FeedingForm.DurationMinutes" />
+                            </label>
+                            <label class="form-span-2">
+                                <span>Anteckning</span>
+                                <textarea rows="3" @bind="FeedingForm.Notes"></textarea>
+                            </label>
+                        </div>
+
+                        <ValidationSummary />
+                        <button class="submit-button" type="submit">Spara matning</button>
+                    </EditForm>
+                </div>
+
+                <div data-log-form="diaper" class="@(ActiveForm == LogFormType.Diaper ? null : "log-form-hidden")">
+                    <EditForm Model="@DiaperForm" OnValidSubmit="@HandleDiaperSubmit" FormName="diaper-log-form">
+                        <DataAnnotationsValidator />
+                        <div class="form-grid">
+                            <label>
+                                <span>Tid</span>
+                                <input type="datetime-local" @bind="DiaperForm.ChangedAt" />
+                            </label>
+                            <label>
+                                <span>Typ</span>
+                                <InputSelect @bind-Value="DiaperForm.Type">
+                                    <option value="@DiaperType.Wet">Kiss</option>
+                                    <option value="@DiaperType.Dirty">Bajs</option>
+                                    <option value="@DiaperType.Mixed">Båda</option>
+                                </InputSelect>
+                            </label>
+                            <label class="form-span-2">
+                                <span>Anteckning</span>
+                                <textarea rows="3" @bind="DiaperForm.Notes"></textarea>
+                            </label>
+                        </div>
+
+                        <ValidationSummary />
+                        <button class="submit-button" type="submit">Spara blöjbyte</button>
+                    </EditForm>
+                </div>
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Mönster</span>
+                    <h2>Insikter</h2>
+                </div>
+            </div>
+
+            <div class="insight-list">
+                @foreach (var insight in BuildInsights(_snapshot, _nextRecommendation))
+                {
+                    <div class="insight-card">
+                        <strong>@insight.Title</strong>
+                        <p>@insight.Description</p>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">Stöd</span>
+                    <h2>Vägledning</h2>
+                </div>
+            </div>
+
+            <div class="guide-card">
+                <span class="guide-tag">2 månader</span>
+                <strong>Därför blir sena sömnfönster extra känsliga</strong>
+                <p>
+                    I den här åldern kan korta skiften i vakentid göra stor skillnad. Håll koll på Sigrids signaler,
+                    inte bara klockan.
+                </p>
+                <a href="/" @onclick:preventDefault class="text-link">Öppna artikelutkast</a>
+            </div>
+        </article>
+    </section>
+</div>
+
+@code {
+    private readonly DateOnly _today = DateOnly.FromDateTime(DateTime.Today);
+    private BabyDailySnapshot _snapshot = default!;
+    private IReadOnlyList<BabyDailySnapshot> _recentHistory = [];
+    private BabyProfile _baby = default!;
+    private SleepRecommendation? _nextRecommendation;
+
+    private LogFormType ActiveForm { get; set; } = LogFormType.Sleep;
+    private string? StatusMessage { get; set; }
+    private SleepLogForm SleepForm { get; set; } = SleepLogForm.CreateDefault();
+    private FeedingLogForm FeedingForm { get; set; } = FeedingLogForm.CreateDefault();
+    private DiaperLogForm DiaperForm { get; set; } = DiaperLogForm.CreateDefault();
+
+    protected override void OnInitialized()
+    {
+        RefreshDashboardData();
+    }
+
+    private string AgeText
+    {
+        get
+        {
+            var age = _baby.AgeInMonthsAndDays(_snapshot.Date);
+            var monthLabel = age.Months == 1 ? "månad" : "månader";
+            var dayLabel = age.Days == 1 ? "dag" : "dagar";
+            return age.Days == 0
+                ? $"{age.Months} {monthLabel}"
+                : $"{age.Months} {monthLabel} och {age.Days} {dayLabel}";
+        }
+    }
+
+    private string TimeUntilNextNapText =>
+        _nextRecommendation is null
+            ? "Planeras senare"
+            : $"{Math.Max(0, (int)Math.Round((_nextRecommendation.RecommendedStartTime - DateTimeOffset.Now).TotalMinutes))} min";
+
+    private void RefreshDashboardData()
+    {
+        _snapshot = AppState.GetSnapshotFor(_today);
+        _recentHistory = AppState.GetSnapshots(_snapshot.Date.AddDays(-5), _snapshot.Date);
+        _baby = _snapshot.Baby;
+        _nextRecommendation = RecommendationService.GetNextNapRecommendation(_snapshot, _recentHistory, DateTimeOffset.Now);
+    }
+
+    private void SetActiveForm(LogFormType formType)
+    {
+        ActiveForm = formType;
+        StatusMessage = null;
+    }
+
+    private void HandleSleepSubmit()
+    {
+        AppState.AddSleepSession(SleepForm.StartTime, SleepForm.EndTime, SleepForm.SessionType, SleepForm.Notes);
+        StatusMessage = "Sömnpass sparat.";
+        SleepForm = SleepLogForm.CreateDefault();
+        RefreshDashboardData();
+    }
+
+    private void HandleFeedingSubmit()
+    {
+        AppState.AddFeedingEntry(
+            FeedingForm.LoggedAt,
+            FeedingForm.Method,
+            FeedingForm.AmountMilliliters,
+            FeedingForm.DurationMinutes,
+            FeedingForm.Notes);
+
+        StatusMessage = "Matning sparad.";
+        FeedingForm = FeedingLogForm.CreateDefault();
+        RefreshDashboardData();
+    }
+
+    private void HandleDiaperSubmit()
+    {
+        AppState.AddDiaperEntry(DiaperForm.ChangedAt, DiaperForm.Type, DiaperForm.Notes);
+        StatusMessage = "Blöjbyte sparat.";
+        DiaperForm = DiaperLogForm.CreateDefault();
+        RefreshDashboardData();
+    }
+
+    private static string ToLogTabKey(LogFormType formType) =>
+        formType switch
+        {
+            LogFormType.Sleep => "sleep",
+            LogFormType.Feeding => "feeding",
+            LogFormType.Diaper => "diaper",
+            _ => "sleep"
+        };
+
+    private string BuildHeroNote(BabyDailySnapshot snapshot)
+    {
+        var naps = snapshot.SleepSessions.Where(session => session.SessionType == SleepSessionType.Nap).ToArray();
+
+        if (_nextRecommendation is not null)
+        {
+            return $"{_nextRecommendation.Reason} {_nextRecommendation.Basis}";
+        }
+
+        if (naps.Length == 0)
+        {
+            return "Logga minst en tupplur först, så kan appen börja uppskatta nästa sömnfönster.";
+        }
+
+        return "Loggad sömn, matning och blöjor pekar mot en jämn dag hittills.";
+    }
+
+    private static string GetCurrentWakeWindow(BabyDailySnapshot snapshot)
+    {
+        var lastNap = snapshot.SleepSessions
+            .Where(session => session.SessionType == SleepSessionType.Nap && session.EndTime <= DateTimeOffset.Now)
+            .OrderByDescending(session => session.EndTime)
+            .FirstOrDefault();
+
+        return lastNap is null ? "Nyss vaknat" : FormatDuration(DateTimeOffset.Now - lastNap.EndTime);
+    }
+
+    private static IReadOnlyList<ScheduleEntry> BuildSchedule(BabyDailySnapshot snapshot)
+    {
+        var entries = new List<ScheduleEntry>
+        {
+            new("06:45-07:15", "Vaknar för dagen", "30 min", "Lugn morgon med ljus, matning och närhet.", false)
+        };
+
+        var napNumber = 1;
+        foreach (var sleep in snapshot.SleepSessions.Where(session => session.SessionType == SleepSessionType.Nap))
+        {
+            entries.Add(new ScheduleEntry(
+                $"{sleep.StartTime:HH:mm}-{sleep.EndTime:HH:mm}",
+                $"Nap {napNumber}",
+                FormatDuration(sleep.Duration),
+                sleep.Notes ?? "Loggat sömnpass.",
+                sleep.StartTime <= DateTimeOffset.Now && sleep.EndTime >= DateTimeOffset.Now));
+
+            napNumber++;
+        }
+
+        entries.Add(new ScheduleEntry(
+            "18:50-19:20",
+            "Läggningsrutin",
+            "30 min",
+            "Bad, matning, dämpat ljus och vitt brus.",
+            false));
+
+        return entries;
+    }
+
+    private static IReadOnlyList<QuickAction> BuildQuickActions(FeedingEntry? lastFeeding, DiaperEntry? lastDiaper) =>
+    [
+        new("Zz", "Logga sömn", "Starta eller fyll i ett sömnpass", LogFormType.Sleep),
+        new("B", "Logga matning", lastFeeding is null ? "Ingen matning loggad än" : $"Senast {lastFeeding.LoggedAt:HH:mm}", LogFormType.Feeding),
+        new("D", "Logga blöja", lastDiaper is null ? "Inget blöjbyte loggat än" : $"Senast {lastDiaper.ChangedAt:HH:mm}", LogFormType.Diaper),
+        new("+", "Öppna formulär", "Välj vilken händelse du vill spara", LogFormType.Sleep)
+    ];
+
+    private static IReadOnlyList<Insight> BuildInsights(BabyDailySnapshot snapshot, SleepRecommendation? recommendation)
+    {
+        var firstNap = snapshot.SleepSessions.FirstOrDefault(session => session.SessionType == SleepSessionType.Nap);
+        var lastFeed = snapshot.LastFeeding;
+        var learnedText = recommendation is null
+            ? "Appen saknar fortfarande underlag för att lära sig."
+            : recommendation.UsesLearnedPattern
+                ? $"Appen bygger nu på {recommendation.HistoricalSampleCount} tidigare vakentider."
+                : "Appen väntar fortfarande på fler loggade dagar innan den lutar sig mer på Sigrids eget mönster.";
+
+        return
+        [
+            new($"Total dagsömn idag: {FormatDuration(snapshot.TotalDaySleep)}", "Beräknat direkt från dagens loggade tupplurar i datamodellen."),
+            new(
+                firstNap is null ? "Första napen är inte loggad ännu" : $"Första napen startade {firstNap.StartTime:HH:mm}",
+                "Det blir en viktig signal senare när vi bygger personlig schemalogik."),
+            new(
+                lastFeed is null ? "Ingen matningsrutin syns ännu" : $"Senaste matningen var {ToSwedishFeedingMethod(lastFeed.Method).ToLowerInvariant()}",
+                "Sömn, matning och blöjor finns nu samlade i samma dagsbild."),
+            new(
+                recommendation?.HistoricalAverageWakeWindow is null
+                    ? "Personligt vakentidsmönster byggs upp"
+                    : $"Lärt vakentidssnitt: {FormatDuration(recommendation.HistoricalAverageWakeWindow.Value)}",
+                learnedText),
+            new(
+                recommendation is null
+                    ? "Fler signaler byggs upp"
+                    : recommendation.IsLikelyLastNap
+                        ? "Nästa nap ser ut att kunna bli dagens sista"
+                        : "Det finns troligen utrymme för fler naps idag",
+                recommendation is null
+                    ? "När mer historik finns visar appen även nattsömn mot snitt och liknande nap-övergångar."
+                    : BuildRecommendationDetails(recommendation))
+        ];
+    }
+
+    private static IReadOnlyList<string> BuildRecommendationHighlights(SleepRecommendation recommendation)
+    {
+        var items = new List<string>();
+
+        if (recommendation.SimilarTransitionSampleCount > 0)
+        {
+            items.Add($"Bygger på {recommendation.SimilarTransitionSampleCount} tidigare liknande övergångar");
+        }
+
+        if (recommendation.LastNightSleepDeltaFromAverage is not null)
+        {
+            var delta = recommendation.LastNightSleepDeltaFromAverage.Value;
+            var direction = delta < TimeSpan.Zero ? "kortare" : "längre";
+            items.Add($"Nattsömnen var {FormatDuration(delta.Duration())} {direction} än snittet");
+        }
+
+        if (recommendation.IsLikelyLastNap)
+        {
+            items.Add("Det här ser ut att bli dagens sista nap");
+        }
+
+        return items;
+    }
+
+    private static string BuildRecommendationDetails(SleepRecommendation recommendation)
+    {
+        var details = new List<string>();
+
+        if (recommendation.SimilarTransitionSampleCount > 0)
+        {
+            details.Add($"Liknande övergångar: {recommendation.SimilarTransitionSampleCount}");
+        }
+
+        if (recommendation.LastNightSleepDeltaFromAverage is not null)
+        {
+            var delta = recommendation.LastNightSleepDeltaFromAverage.Value;
+            var direction = delta < TimeSpan.Zero ? "kortare" : "längre";
+            details.Add($"nattsömn {FormatDuration(delta.Duration())} {direction} än snittet");
+        }
+
+        if (recommendation.IsLikelyLastNap)
+        {
+            details.Add("detta ser ut som sista napen idag");
+        }
+
+        return details.Count == 0
+            ? "Rekommendationen väger nu in fler signaler än bara ålder och senaste nap."
+            : string.Join(" | ", details);
+    }
+
+    private static string ToSwedishFeedingMethod(FeedingMethod method) =>
+        method switch
+        {
+            FeedingMethod.Breast => "Amning",
+            FeedingMethod.Bottle => "Flaska",
+            FeedingMethod.Solids => "Fast föda",
+            _ => "Matning"
+        };
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+        return hours <= 0 ? $"{minutes} min" : $"{hours} h {minutes:D2} m";
+    }
+
+    private sealed record ScheduleEntry(string TimeRange, string Title, string Duration, string Description, bool IsActive);
+    private sealed record QuickAction(string Icon, string Title, string Subtitle, LogFormType FormType);
+    private sealed record Insight(string Title, string Description);
+
+    private enum LogFormType
+    {
+        Sleep,
+        Feeding,
+        Diaper
+    }
+
+    private sealed class SleepLogForm
+    {
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public SleepSessionType SessionType { get; set; } = SleepSessionType.Nap;
+        public string? Notes { get; set; }
+
+        public static SleepLogForm CreateDefault()
+        {
+            var now = DateTime.Now;
+            return new SleepLogForm
+            {
+                StartTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0),
+                EndTime = new DateTime(now.Year, now.Month, now.Day, now.Hour, 45, 0)
+            };
+        }
+    }
+
+    private sealed class FeedingLogForm
+    {
+        public DateTime LoggedAt { get; set; }
+        public FeedingMethod Method { get; set; } = FeedingMethod.Bottle;
+        public double? AmountMilliliters { get; set; } = 150;
+        public int? DurationMinutes { get; set; }
+        public string? Notes { get; set; }
+
+        public static FeedingLogForm CreateDefault()
+        {
+            var now = DateTime.Now;
+            return new FeedingLogForm
+            {
+                LoggedAt = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0)
+            };
+        }
+    }
+
+    private sealed class DiaperLogForm
+    {
+        public DateTime ChangedAt { get; set; }
+        public DiaperType Type { get; set; } = DiaperType.Wet;
+        public string? Notes { get; set; }
+
+        public static DiaperLogForm CreateDefault()
+        {
+            var now = DateTime.Now;
+            return new DiaperLogForm
+            {
+                ChangedAt = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0)
+            };
+        }
+    }
+}
