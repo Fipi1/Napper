@@ -9,7 +9,32 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddDbContext<NapperDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("NapperDatabase")));
+{
+    var databaseUrl = builder.Configuration["DATABASE_URL"];
+    var configuredConnectionString = builder.Configuration.GetConnectionString("NapperDatabase");
+    var connectionString = string.IsNullOrWhiteSpace(databaseUrl) ? configuredConnectionString : databaseUrl;
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        options.UseSqlite("Data Source=napper.db");
+        return;
+    }
+
+    if (connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(connectionString);
+        return;
+    }
+
+    if (connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase) ||
+        connectionString.Contains("Filename=", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseSqlite(connectionString);
+        return;
+    }
+
+    options.UseSqlServer(connectionString);
+});
 builder.Services.AddScoped<BabySleepAppState>();
 builder.Services.AddScoped<SleepRecommendationService>();
 

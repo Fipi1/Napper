@@ -70,6 +70,11 @@ public static class NapperDbSeeder
 
     private static async Task EnsureProfileSettingsTableAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
     {
+        if (!dbContext.Database.IsSqlServer())
+        {
+            return;
+        }
+
         const string sql = """
             IF OBJECT_ID(N'[BabyProfileSettings]', N'U') IS NULL
             BEGIN
