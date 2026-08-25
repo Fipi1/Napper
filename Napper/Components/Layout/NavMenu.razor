@@ -10,9 +10,10 @@
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<input id="mobile-nav-toggle" type="checkbox" title="Navigation menu" class="navbar-toggler-checkbox" />
+<label for="mobile-nav-toggle" class="menu-toggle-button" aria-label="Öppna meny"></label>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable" onclick="document.getElementById('mobile-nav-toggle')?.click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
