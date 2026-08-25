@@ -1,10 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Napper.Models;
 
 namespace Napper.Data;
 
 public sealed class NapperDbContext(DbContextOptions<NapperDbContext> options) : DbContext(options)
 {
+    private static readonly ValueConverter<DateTimeOffset, DateTime> UtcDateTimeOffsetConverter = new(
+        value => value.UtcDateTime,
+        value => new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Utc)).ToLocalTime());
+
     public DbSet<BabyProfile> BabyProfiles => Set<BabyProfile>();
     public DbSet<BabyProfileSettings> BabyProfileSettings => Set<BabyProfileSettings>();
 
@@ -33,6 +38,8 @@ public sealed class NapperDbContext(DbContextOptions<NapperDbContext> options) :
         modelBuilder.Entity<SleepSession>(entity =>
         {
             entity.HasKey(session => session.Id);
+            entity.Property(session => session.StartTime).HasConversion(UtcDateTimeOffsetConverter);
+            entity.Property(session => session.EndTime).HasConversion(UtcDateTimeOffsetConverter);
             entity.Property(session => session.Notes).HasMaxLength(1000);
             entity.Ignore(session => session.Duration);
         });
@@ -40,12 +47,14 @@ public sealed class NapperDbContext(DbContextOptions<NapperDbContext> options) :
         modelBuilder.Entity<FeedingEntry>(entity =>
         {
             entity.HasKey(entry => entry.Id);
+            entity.Property(entry => entry.LoggedAt).HasConversion(UtcDateTimeOffsetConverter);
             entity.Property(entry => entry.Notes).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<DiaperEntry>(entity =>
         {
             entity.HasKey(entry => entry.Id);
+            entity.Property(entry => entry.ChangedAt).HasConversion(UtcDateTimeOffsetConverter);
             entity.Property(entry => entry.Notes).HasMaxLength(1000);
         });
     }
