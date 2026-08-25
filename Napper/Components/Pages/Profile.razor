@@ -68,6 +68,10 @@
                         <InputText @bind-Value="SettingsForm.PreferredBedtime" placeholder="19:15" />
                     </label>
                     <label>
+                        <span>Vaknar för dagen</span>
+                        <InputText @bind-Value="SettingsForm.PreferredWakeTime" placeholder="07:00" />
+                    </label>
+                    <label>
                         <span>Vanligt antal naps</span>
                         <input type="number" min="1" max="8" @bind="SettingsForm.PreferredNapCount" />
                     </label>
@@ -109,8 +113,12 @@
                     <strong>@AgeText</strong>
                 </div>
                 <div class="profile-summary-item">
-                    <span>Laggtid</span>
+                    <span>Läggtid</span>
                     <strong>@(string.IsNullOrWhiteSpace(CurrentSettings.PreferredBedtime) ? "Inte satt" : CurrentSettings.PreferredBedtime)</strong>
+                </div>
+                <div class="profile-summary-item">
+                    <span>Vaknar för dagen</span>
+                    <strong>@(string.IsNullOrWhiteSpace(CurrentSettings.PreferredWakeTime) ? "Inte satt" : CurrentSettings.PreferredWakeTime)</strong>
                 </div>
                 <div class="profile-summary-item">
                     <span>Vanligt antal naps</span>
@@ -135,8 +143,6 @@
     private BabyProfile CurrentProfile => AppState.GetBabyProfile();
 
     private BabyProfileSettings CurrentSettings => AppState.GetBabyProfileSettings();
-
-    private string TodayDateString => AppTime.Today.ToString("yyyy-MM-dd");
 
     private string AgeText
     {
@@ -171,6 +177,7 @@
         {
             BabyProfileId = settings.BabyProfileId,
             PreferredBedtime = settings.PreferredBedtime,
+            PreferredWakeTime = settings.PreferredWakeTime,
             PreferredNapCount = settings.PreferredNapCount,
             Use24HourClock = settings.Use24HourClock,
             WhiteNoiseEnabled = settings.WhiteNoiseEnabled,
@@ -195,6 +202,7 @@
         AppState.UpdateBabyProfileSettings(
             SettingsForm.BabyProfileId,
             SettingsForm.PreferredBedtime,
+            SettingsForm.PreferredWakeTime,
             SettingsForm.PreferredNapCount,
             SettingsForm.Use24HourClock,
             SettingsForm.WhiteNoiseEnabled,
@@ -216,6 +224,7 @@
     {
         public Guid BabyProfileId { get; set; }
         public string? PreferredBedtime { get; set; }
+        public string? PreferredWakeTime { get; set; }
         public int? PreferredNapCount { get; set; }
         public bool Use24HourClock { get; set; }
         public bool WhiteNoiseEnabled { get; set; }

@@ -7,6 +7,7 @@ public sealed class SleepRecommendationService
     public SleepRecommendation? GetNextNapRecommendation(
         BabyDailySnapshot snapshot,
         IReadOnlyList<BabyDailySnapshot> history,
+        BabyProfileSettings settings,
         DateTimeOffset now)
     {
         var age = snapshot.Baby.AgeInMonthsAndDays(snapshot.Date);
@@ -29,7 +30,7 @@ public sealed class SleepRecommendationService
         var lastNightSleep = GetLastNightSleep(snapshot, now);
         var averageNightSleep = GetAverageNightSleep(historyBeforeToday);
 
-        var signal = BuildSignal(ageBaseline, generalPattern, transitionPattern, firstNapPattern, napsToday.Length, lastNightSleep);
+        var signal = BuildSignal(ageBaseline, generalPattern, transitionPattern, firstNapPattern, napsToday.Length, lastNightSleep, snapshot.Date, settings);
         var baseline = signal.Baseline;
         var anchorTime = signal.AnchorTime ?? napsToday.LastOrDefault()?.EndTime;
 
@@ -88,7 +89,9 @@ public sealed class SleepRecommendationService
         LearnedWakeWindow? transitionPattern,
         LearnedWakeWindow? firstNapPattern,
         int completedNaps,
-        SleepSession? lastNightSleep)
+        SleepSession? lastNightSleep,
+        DateOnly snapshotDate,
+        BabyProfileSettings settings)
     {
         if (completedNaps == 0 && firstNapPattern is not null)
         {
@@ -119,6 +122,16 @@ public sealed class SleepRecommendationService
                 Blend(ageBaseline, generalPattern.AverageWakeWindow, 0.35, 0.65),
                 null,
                 "general");
+        }
+
+        if (completedNaps == 0 &&
+            lastNightSleep is null &&
+            TimeOnly.TryParse(settings.PreferredWakeTime, out var wakeTime))
+        {
+            return new RecommendationSignal(
+                ageBaseline,
+                AppTime.ToLocalOffset(snapshotDate.ToDateTime(wakeTime)),
+                "wake-time");
         }
 
         return new RecommendationSignal(ageBaseline, null, "age");
@@ -345,6 +358,7 @@ public sealed class SleepRecommendationService
             "first-nap" => "Forsta napen vager nu in hur lang vakentiden brukar vara efter natten.",
             "transition" => "Appen vager nu in vilket nap-nummer i dagen som kommer harnast.",
             "general" => "Appen lutar sig pa Sigrids tidigare loggade vakentider.",
+            "wake-time" => "Appen utgar just nu fran installningen for nar dagen brukar borja.",
             _ => "Appen utgar fortfarande mest fran aldersspannet."
         });
 

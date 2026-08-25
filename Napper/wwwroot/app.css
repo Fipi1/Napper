@@ -442,6 +442,7 @@ h3 {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 0.8fr);
     gap: 1.5rem;
+    align-items: start;
 }
 
 .profile-status {
@@ -676,6 +677,10 @@ h3 {
         grid-template-columns: 1fr;
     }
 
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
     .panel-accent {
         grid-row: auto;
     }
@@ -711,5 +716,22 @@ h3 {
 
     .form-span-2 {
         grid-column: auto;
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .profile-summary-card {
+        order: 3;
+    }
+
+    .checkbox-card {
+        align-items: flex-start;
+    }
+
+    .checkbox-card span {
+        line-height: 1.4;
     }
 }

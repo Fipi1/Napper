@@ -33,6 +33,7 @@ public sealed class NapperDbContext(DbContextOptions<NapperDbContext> options) :
         {
             entity.HasKey(settings => settings.BabyProfileId);
             entity.Property(settings => settings.PreferredBedtime).HasMaxLength(16);
+            entity.Property(settings => settings.PreferredWakeTime).HasMaxLength(16);
             entity.Property(settings => settings.CareNotes).HasMaxLength(1000);
         });
 

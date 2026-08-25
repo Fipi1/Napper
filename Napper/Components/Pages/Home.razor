@@ -271,6 +271,7 @@
     private BabyDailySnapshot _snapshot = default!;
     private IReadOnlyList<BabyDailySnapshot> _recentHistory = [];
     private BabyProfile _baby = default!;
+    private BabyProfileSettings _settings = default!;
     private SleepRecommendation? _nextRecommendation;
 
     private LogFormType ActiveForm { get; set; } = LogFormType.Sleep;
@@ -307,7 +308,8 @@
         _snapshot = AppState.GetSnapshotFor(_today);
         _recentHistory = AppState.GetSnapshots(_snapshot.Date.AddDays(-5), _snapshot.Date);
         _baby = _snapshot.Baby;
-        _nextRecommendation = RecommendationService.GetNextNapRecommendation(_snapshot, _recentHistory, AppTime.UtcNow);
+        _settings = AppState.GetBabyProfileSettings();
+        _nextRecommendation = RecommendationService.GetNextNapRecommendation(_snapshot, _recentHistory, _settings, AppTime.UtcNow);
     }
 
     private void SetActiveForm(LogFormType formType)

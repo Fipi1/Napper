@@ -14,6 +14,7 @@ public static class NapperDbSeeder
         await dbContext.Database.EnsureCreatedAsync(cancellationToken);
         await EnsureApplicationSchemaAsync(dbContext, cancellationToken);
         await EnsureProfileSettingsTableAsync(dbContext, cancellationToken);
+        await EnsurePreferredWakeTimeColumnAsync(dbContext, cancellationToken);
         await RemoveSampleDataAsync(dbContext, cancellationToken);
 
         if (await dbContext.BabyProfiles.AnyAsync(cancellationToken))
@@ -68,6 +69,7 @@ public static class NapperDbSeeder
                 CREATE TABLE [BabyProfileSettings] (
                     [BabyProfileId] uniqueidentifier NOT NULL PRIMARY KEY,
                     [PreferredBedtime] nvarchar(16) NULL,
+                    [PreferredWakeTime] nvarchar(16) NULL,
                     [PreferredNapCount] int NULL,
                     [Use24HourClock] bit NOT NULL CONSTRAINT [DF_BabyProfileSettings_Use24HourClock] DEFAULT 1,
                     [WhiteNoiseEnabled] bit NOT NULL CONSTRAINT [DF_BabyProfileSettings_WhiteNoiseEnabled] DEFAULT 1,
@@ -77,6 +79,49 @@ public static class NapperDbSeeder
             """;
 
         await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+    }
+
+    private static async Task EnsurePreferredWakeTimeColumnAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsSqlServer())
+        {
+            const string sql = """
+                IF COL_LENGTH(N'BabyProfileSettings', N'PreferredWakeTime') IS NULL
+                BEGIN
+                    ALTER TABLE [BabyProfileSettings] ADD [PreferredWakeTime] nvarchar(16) NULL;
+                END
+                """;
+
+            await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            return;
+        }
+
+        if (dbContext.Database.IsNpgsql())
+        {
+            const string sql = """
+                ALTER TABLE "BabyProfileSettings"
+                ADD COLUMN IF NOT EXISTS "PreferredWakeTime" character varying(16);
+                """;
+
+            await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            return;
+        }
+
+        if (dbContext.Database.IsSqlite())
+        {
+            const string sql = """
+                ALTER TABLE "BabyProfileSettings"
+                ADD COLUMN "PreferredWakeTime" TEXT NULL;
+                """;
+
+            try
+            {
+                await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+            }
+            catch
+            {
+            }
+        }
     }
 
     private static async Task RemoveSampleDataAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
@@ -136,6 +181,7 @@ public static class NapperDbSeeder
         {
             BabyProfileId = babyId,
             PreferredBedtime = "19:15",
+            PreferredWakeTime = "07:00",
             PreferredNapCount = 4,
             Use24HourClock = true,
             WhiteNoiseEnabled = true,

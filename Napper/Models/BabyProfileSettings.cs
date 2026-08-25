@@ -6,6 +6,8 @@ public sealed class BabyProfileSettings
 
     public string? PreferredBedtime { get; set; }
 
+    public string? PreferredWakeTime { get; set; }
+
     public int? PreferredNapCount { get; set; }
 
     public bool Use24HourClock { get; set; }

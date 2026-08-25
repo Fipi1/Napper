@@ -25,6 +25,7 @@ public sealed class BabySleepAppState(NapperDbContext dbContext)
         {
             BabyProfileId = baby.Id,
             PreferredBedtime = "19:15",
+            PreferredWakeTime = "07:00",
             PreferredNapCount = 4,
             Use24HourClock = true,
             WhiteNoiseEnabled = true,
@@ -48,6 +49,7 @@ public sealed class BabySleepAppState(NapperDbContext dbContext)
     public void UpdateBabyProfileSettings(
         Guid babyProfileId,
         string? preferredBedtime,
+        string? preferredWakeTime,
         int? preferredNapCount,
         bool use24HourClock,
         bool whiteNoiseEnabled,
@@ -66,6 +68,7 @@ public sealed class BabySleepAppState(NapperDbContext dbContext)
         }
 
         settings.PreferredBedtime = Clean(preferredBedtime);
+        settings.PreferredWakeTime = Clean(preferredWakeTime);
         settings.PreferredNapCount = preferredNapCount;
         settings.Use24HourClock = use24HourClock;
         settings.WhiteNoiseEnabled = whiteNoiseEnabled;
