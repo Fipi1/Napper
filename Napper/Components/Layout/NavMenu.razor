@@ -4,20 +4,24 @@
             <span class="brand-mark">N</span>
             <span class="brand-copy">
                 <strong>Napper</strong>
-                <small>Bebisens sömnplan</small>
+                <small>Bebisens somnplan</small>
             </span>
         </a>
     </div>
 </div>
 
-<input id="mobile-nav-toggle" type="checkbox" title="Navigation menu" class="navbar-toggler-checkbox" />
-<label for="mobile-nav-toggle" class="menu-toggle-button" aria-label="Öppna meny"></label>
+<button type="button"
+        class="menu-toggle-button"
+        aria-label="Oppna meny"
+        aria-expanded="@isMobileMenuOpen"
+        @onclick="ToggleMobileMenu">
+</button>
 
-<div class="nav-scrollable" onclick="document.getElementById('mobile-nav-toggle')?.click()">
+<div class="nav-scrollable @(isMobileMenuOpen ? "open" : string.Empty)" @onclick="CloseMobileMenu">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Översikt
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Oversikt
             </NavLink>
         </div>
 
@@ -46,3 +50,17 @@
         </div>
     </nav>
 </div>
+
+@code {
+    private bool isMobileMenuOpen;
+
+    private void ToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+    }
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+    }
+}
