@@ -15,7 +15,6 @@ public static class NapperDbSeeder
         await EnsureApplicationSchemaAsync(dbContext, cancellationToken);
         await EnsureProfileSettingsTableAsync(dbContext, cancellationToken);
         await EnsurePreferredWakeTimeColumnAsync(dbContext, cancellationToken);
-        await RemoveSampleDataAsync(dbContext, cancellationToken);
 
         if (await dbContext.BabyProfiles.AnyAsync(cancellationToken))
         {
@@ -122,49 +121,6 @@ public static class NapperDbSeeder
             {
             }
         }
-    }
-
-    private static async Task RemoveSampleDataAsync(NapperDbContext dbContext, CancellationToken cancellationToken)
-    {
-        var profile = await dbContext.BabyProfiles.SingleOrDefaultAsync(cancellationToken);
-        if (profile is null)
-        {
-            return;
-        }
-
-        var hasSeedIdentity =
-            profile.Id == Guid.Parse("B955A90E-730B-4D6E-8E59-EA168FD1ACF4") &&
-            profile.Name == "Sigrid" &&
-            profile.BirthDate == new DateOnly(2026, 6, 25);
-
-        if (!hasSeedIdentity)
-        {
-            return;
-        }
-
-        var sleepCount = await dbContext.SleepSessions.CountAsync(cancellationToken);
-        var feedingCount = await dbContext.FeedingEntries.CountAsync(cancellationToken);
-        var diaperCount = await dbContext.DiaperEntries.CountAsync(cancellationToken);
-
-        if (sleepCount > 0 || feedingCount > 0 || diaperCount > 0)
-        {
-            dbContext.SleepSessions.RemoveRange(dbContext.SleepSessions);
-            dbContext.FeedingEntries.RemoveRange(dbContext.FeedingEntries);
-            dbContext.DiaperEntries.RemoveRange(dbContext.DiaperEntries);
-        }
-
-        if (profile.Notes == "Usually settles well with white noise and a short wind-down.")
-        {
-            profile.Notes = null;
-        }
-
-        var settings = await dbContext.BabyProfileSettings.FirstOrDefaultAsync(item => item.BabyProfileId == profile.Id, cancellationToken);
-        if (settings is not null && settings.CareNotes == "Sigrid somnar ofta bast med lugn overgang och vitt brus.")
-        {
-            settings.CareNotes = null;
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static bool IsMissingAppTableException(Exception exception) =>
