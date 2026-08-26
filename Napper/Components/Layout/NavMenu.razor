@@ -1,3 +1,20 @@
+<div class="mobile-menu-bar">
+    <a class="navbar-brand" href="">
+        <span class="brand-mark">N</span>
+        <span class="brand-copy">
+            <strong>Napper</strong>
+            <small>Bebisens somnplan</small>
+        </span>
+    </a>
+
+    <button type="button"
+            class="menu-toggle-button"
+            aria-label="Oppna meny"
+            aria-expanded="@isMobileMenuOpen"
+            @onclick="ToggleMobileMenu">
+    </button>
+</div>
+
 <div class="menu-top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">
@@ -9,13 +26,6 @@
         </a>
     </div>
 </div>
-
-<button type="button"
-        class="menu-toggle-button"
-        aria-label="Oppna meny"
-        aria-expanded="@isMobileMenuOpen"
-        @onclick="ToggleMobileMenu">
-</button>
 
 <div class="nav-scrollable @(isMobileMenuOpen ? "open" : string.Empty)" @onclick="CloseMobileMenu">
     <nav class="nav flex-column">
